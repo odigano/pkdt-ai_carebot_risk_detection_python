@@ -16,8 +16,11 @@ mkdir -p "$NEW_RELEASE_DIR" || { echo "Error: Failed to create release directory
 
 # Git 클론 및 패키지 설치
 cd "$NEW_RELEASE_DIR"
-git clone -b deploy git@github.com:odigano/pkdt-ai_carebot_risk_detection_python.git || { echo "Error: Failed to git clone"; exit 1; }
+git clone -b deploy git@github.com:odigano/pkdt-ai_carebot_risk_detection_python.git . || { echo "Error: Failed to git clone"; exit 1; }
 pip3.13 install torch torchvision fastapi uvicorn transformers pandas || { echo "Error: Failed to pip install"; exit 1; }
+
+# 모델 파일 복사
+cp -r /home/deploy/model "$NEW_RELEASE_DIR"
 
 # 심볼릭 링크 업데이트
 echo "Updating symbolic link to $NEW_RELEASE_DIR"
@@ -85,7 +88,7 @@ fi
 
 # 오래된 릴리스 정리 (최신 5개 유지)
 echo "Starting old release cleanup..."
-CURRENT_RELEASE_TARGET=$(readlink -f "$CURRENT_SYMLINK" || echo "") 
+CURRENT_RELEASE_TARGET=$(readlink -f "$CURRENT_SYMLINK" || echo "")
 
 if [ -z "$CURRENT_RELEASE_TARGET" ]; then
   echo "Warning: Could not determine current release target for cleanup. Skipping old release cleanup."
