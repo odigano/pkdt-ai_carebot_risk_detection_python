@@ -1,0 +1,61 @@
+name: Deploy FastAPI App
+
+on:
+  push:
+    branches:
+      - deploy
+
+jobs:
+  deploy-test:
+    runs-on: ubuntu-latest
+    environment: test
+
+    steps:
+    - name: Checkout repository for deploy script and source
+      uses: actions/checkout@v5
+
+    - name: Configure SSH
+      run: |
+        mkdir -p ~/.ssh
+        echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+        chmod 600 ~/.ssh/id_rsa
+        ssh-keyscan -p ${{ secrets.SSH_HOST1_PORT }} ${{ secrets.HOST1 }} >> ~/.ssh/known_hosts
+        # ssh-keyscan -p ${{ secrets.SSH_HOST2_PORT }} ${{ secrets.HOST2 }} >> ~/.ssh/known_hosts
+        echo "SSH configuration complete on Runner."
+
+    - name: Deploy using remote script and rsync
+      run: |
+        USERNAME="${{ secrets.USERNAME }}"
+        HOST1="${{ secrets.HOST1 }}"
+        # HOST2="${{ secrets.HOST2 }}"
+        SSH_HOST1_PORT="${{ secrets.SSH_HOST1_PORT }}"
+        # SSH_HOST2_PORT="${{ secrets.SSH_HOST2_PORT }}"
+        DEPLOY_PATH="${{ vars.DEPLOY_PATH }}"
+
+        DEPLOY_SCRIPT_PATH=".github/scripts/deploy.sh" 
+        REMOTE_SCRIPT_PATH="$DEPLOY_PATH/deploy_script.sh"
+
+        chmod +x "$DEPLOY_SCRIPT_PATH"
+
+        echo "--- DEPLOY JOB: Transferring deploy script and FastAPI app to remote server ---"
+        
+        # 1. 쉘 스크립트를 원격 서버로 전송
+        scp -P $SSH_HOST1_PORT "$DEPLOY_SCRIPT_PATH" $USERNAME@$HOST1:$REMOTE_SCRIPT_PATH
+        if [ $? -ne 0 ]; then echo "Error: Failed to transfer deploy script to host1"; exit 1; fi
+        # scp -P $SSH_HOST2_PORT "$DEPLOY_SCRIPT_PATH" $USERNAME@$HOST2:$REMOTE_SCRIPT_PATH
+        # if [ $? -ne 0 ]; then echo "Error: Failed to transfer deploy script to host2"; exit 1; fi
+
+        # 2. FastAPI 프로젝트 전체 디렉토리를 원격 서버로 rsync로 전송
+        # rsync -avz --exclude='.git/' --exclude='.github/' --exclude='__pycache__/' --exclude='venv/' --exclude='*.pyc' --delete -e "ssh -p $SSH_HOST1_PORT" ./ $USERNAME@$HOST1:$DEPLOY_PATH/
+        # if [ $? -ne 0 ]; then echo "Error: Failed to rsync project to host1"; exit 1; fi
+        # rsync -avz --exclude='.git/' --exclude='.github/' --exclude='__pycache__/' --exclude='venv/' --exclude='*.pyc' --delete -e "ssh -p $SSH_HOST2_PORT" ./ $USERNAME@$HOST2:$DEPLOY_PATH/
+        # if [ $? -ne 0 ]; then echo "Error: Failed to rsync project to host2"; exit 1; fi
+
+        # 3. 원격 서버에서 쉘 스크립트 실행 (인자 전달)
+        echo "--- DEPLOY JOB: Executing deploy script on remote server ---"
+        ssh -p $SSH_HOST1_PORT $USERNAME@$HOST1 "bash \"$REMOTE_SCRIPT_PATH\" \"$DEPLOY_PATH\"
+        if [ $? -ne 0 ]; then echo "Error: Remote deploy script failed from host1"; exit 1; fi
+        # ssh -p $SSH_HOST2_PORT $USERNAME@$HOST2 "bash \"$REMOTE_SCRIPT_PATH\" \"$DEPLOY_PATH\"
+        # if [ $? -ne 0 ]; then echo "Error: Remote deploy script failed from host2"; exit 1; fi
+        
+        echo "--- DEPLOY JOB END ---"
