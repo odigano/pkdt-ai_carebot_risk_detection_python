@@ -42,7 +42,7 @@ jobs:
 
         # 2. 원격 서버에서 쉘 스크립트 실행 (인자 전달)
         echo "--- DEPLOY JOB: Executing deploy script on remote server ---"
-        ssh -p $SSH_HOST1_PORT $USERNAME@$HOST1 "bash \"$REMOTE_SCRIPT_PATH\" \"$DEPLOY_PATH\"
+        ssh -p $SSH_HOST1_PORT $USERNAME@$HOST1 "bash \"$REMOTE_SCRIPT_PATH\" \"$DEPLOY_PATH\""
         if [ $? -ne 0 ]; then echo "Error: Remote deploy script failed from host1"; exit 1; fi
         
-        echo "--- DEPLOY JOB END --- "
+        echo "--- DEPLOY JOB END ---"
